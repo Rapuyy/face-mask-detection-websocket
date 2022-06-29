@@ -2,6 +2,8 @@ import asyncio
 from http import client
 import websockets
 import cv2
+import threading
+import requests
 
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from tensorflow.keras.preprocessing.image import img_to_array
@@ -12,14 +14,19 @@ import imutils
 import time
 import os
 
-# def background_thread(websocket):
-#     """Example of how to send server generated events to clients."""
-#     count = 0
-#     while websocket in connected:
-#         time.sleep(2)
-#         count += 1
-#         websocket.send("|||server generated events no:" + count)
-#     return
+def background_task(interval_sec):
+    # run forever
+    global log
+    global url
+    print("masuk")
+    while True:
+        print("inserting to db")
+        # perform the task
+        r = requests.post(url, json={'detail':log})
+        # print(r.text)
+        print("Background: " + str(log))
+        # block for the interval
+        time.sleep(interval_sec)
 
 def detect_and_predict_mask(frame, net, model, thresh):
 	# grab the dimensions of the frame and then construct a blob
@@ -84,10 +91,12 @@ def detect_and_predict_mask(frame, net, model, thresh):
 	return (locs, preds)
 
 
-async def time(websocket, path):
+async def server(websocket, path):
     connected.add(websocket)
     print(connected)
     print("someone just connected")
+
+    global log
     # background_thread(websocket)
     
     while True:
@@ -140,7 +149,8 @@ async def time(websocket, path):
                 encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 65]
                 man = cv2.imencode('.jpg', frame, encode_param)[1]
                 result = "{}/{}/{}".format(count[0], count[1], count[2])
-                print(result)
+                log = f'{{"correct":"{count[0]}","incorrect":"{count[1]}", "no_mask":"{count[2]}"}}'
+                # print(log)
                 
                 #appen man
                 # man = man + "||{:02d}".format(2)
@@ -181,7 +191,13 @@ connected = set()
 #start_server = websockets.serve(time, "192.168.84.117", 9997)  #ip jetson di hotspot hp
 #start_server = websockets.serve(time, "192.168.0.112", 9997)  #ip jetson wifi if
 # start_server = websockets.serve(time, "192.168.0.135", 9997)  #ip local  
-start_server = websockets.serve(time, "127.0.0.1", 9997)  #ip local  
+start_server = websockets.serve(server, "127.0.0.1", 9997)  #ip local  
+
+log = None
+url = "http://192.168.0.104:8000/api/add"
+daemon = threading.Thread(target=background_task, args=(1,), daemon=True, name='Background')
+daemon.start()
+
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
 
