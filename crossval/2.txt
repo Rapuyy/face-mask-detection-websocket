@@ -1,0 +1,10 @@
+              precision    recall  f1-score   support
+
+     Correct       0.97      0.93      0.95        30
+   Incorrect       0.94      0.97      0.95        30
+  NoFacemask       1.00      1.00      1.00        30
+
+    accuracy                           0.97        90
+   macro avg       0.97      0.97      0.97        90
+weighted avg       0.97      0.97      0.97        90
+
